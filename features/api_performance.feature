@@ -4,6 +4,7 @@ Feature: Desempenho de resposta da Book Store API
   Quero acompanhar a latencia do catalogo
   Para verificar se a resposta media atende ao limite esperado
 
+  @smoke
   Scenario: Retornar o catalogo em ate dois segundos na media
     Given que a API da Book Store esta configurada
     When meco cinco chamadas sequenciais ao catalogo

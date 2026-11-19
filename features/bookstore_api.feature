@@ -3,6 +3,7 @@ Feature: Book Store API
   Quero criar uma conta e reservar livros
   Para consultar os livros associados a minha conta
 
+  @smoke
   Scenario: Criar usuario, reservar dois livros e consultar os detalhes
     Given que a API da Book Store esta configurada
     When crio um novo usuario
@@ -17,6 +18,7 @@ Feature: Book Store API
     When reservo dois livros disponiveis
     Then os detalhes do usuario mostram os dois livros reservados
 
+  @smoke
   Scenario: Excluir usuario e confirmar que nao pode mais ser consultado
     Given que a API da Book Store esta configurada
     When crio um novo usuario

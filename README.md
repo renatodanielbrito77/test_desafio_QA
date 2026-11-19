@@ -1,16 +1,33 @@
 # DemoQA Book Store API
 
-Automacao do fluxo da API DemoQA com Python e Behave (BDD/Gherkin):
+Automação do fluxo da DemoQA Book Store API com Python e Behave
+(BDD/Gherkin). Consulte o [Swagger da DemoQA](https://demoqa.com/swagger/)
+para a referência dos endpoints.
 
-1. Criar um usuario.
-2. Gerar um token e confirmar a autorizacao.
-3. Consultar o catalogo.
-4. Consultar os detalhes de um livro do catalogo.
-5. Reservar dois livros disponiveis e validar exatamente os dois ISBNs.
-6. Consultar os dados do usuario e validar os livros.
+## Escopo do desafio
 
-Um segundo cenario positivo exclui um usuario e confirma que ele nao pode mais
-ser consultado.
+O [cenário principal](features/bookstore_api.feature#L7) cobre os seis
+passos do enunciado em uma única execução.
+
+| Passo | Endpoint | Evidência no teste |
+| --- | --- | --- |
+| Criar usuário | `POST /Account/v1/User` | HTTP 201, nome esperado e ID do usuário |
+| Gerar token | `POST /Account/v1/GenerateToken` | HTTP 200, sucesso e token configurado na sessão |
+| Confirmar autorização | `POST /Account/v1/Authorized` | HTTP 200 e resposta booleana `true` |
+| Listar livros | `GET /BookStore/v1/Books` | HTTP 200 e catálogo com livros identificados por ISBN |
+| Reservar dois livros | `POST /BookStore/v1/Books` | HTTP 201 e exatamente os dois ISBNs distintos selecionados |
+| Consultar usuário e livros reservados | `GET /Account/v1/User/{userID}` | HTTP 200, ID do usuário criado e exatamente os dois ISBNs reservados |
+
+Para executar o cenário principal isoladamente:
+
+```bash
+behave features/bookstore_api.feature --name "^Criar usuario, reservar dois livros e consultar os detalhes$"
+```
+
+Os complementos incluem consulta de detalhes de um livro, exclusão de
+usuário, cenários negativos, latência e GitHub Actions. O cenário de
+atomicidade documenta uma divergência observada na DemoQA e depende de
+uma decisão de Produto para virar critério de promoção.
 
 ## Requisitos
 
@@ -45,7 +62,28 @@ Para executar somente a medição de latência e exibir as amostras, a média e 
 behave --no-capture -f plain features/api_performance.feature
 ```
 
-Os testes unitários de limpeza e de validação das respostas podem ser executados com:
+### Verificação rápida com tags
+
+A tag `@smoke` seleciona quatro cenários:
+
+- **Positivos** — um cenário cria uma conta, reserva dois livros e confere a
+  coleção. O outro exclui uma conta e confirma que ela foi removida.
+- **Negativo** — recusar a consulta de um usuário existente sem token.
+- **Performance** — medir a latência de cinco consultas ao catálogo.
+
+```bash
+behave --tags="@smoke" --no-capture -f plain
+```
+
+Para executar os três cenários funcionais da seleção:
+
+```bash
+behave --tags="@smoke and not @performance"
+```
+
+### Testes unitários
+
+Para testar a limpeza e a validação das respostas localmente:
 
 ```bash
 python -m unittest discover -s tests -v

@@ -59,6 +59,7 @@ Feature: Respostas negativas da Book Store API
     Then a API rejeita a reserva duplicada
     And a colecao continua com uma unica copia do livro
 
+  @smoke
   Scenario: Recusar consulta de usuario sem token
     Given que a API da Book Store esta configurada
     When crio um novo usuario
