@@ -80,11 +80,30 @@ def catalog_contains_books(context) -> None:
     context.available_books = books
 
 
+@when("consulto os detalhes do primeiro livro do catalogo")
+def get_first_book_details(context) -> None:
+    assert context.available_books, "Nao ha livros no catalogo para consultar."
+    context.selected_book = context.available_books[0]
+    context.book_details_response = context.api.get_book(context.selected_book["isbn"])
+
+
+@then("os detalhes do livro correspondem ao catalogo")
+def book_details_match_catalog(context) -> None:
+    response = context.book_details_response
+    assert response.status_code == 200, f"Esperado HTTP 200, recebido {response.status_code}."
+    details = response.json()
+    for field in ("isbn", "title", "author"):
+        assert details.get(field) == context.selected_book.get(field), (
+            f"O campo {field} difere do catalogo."
+        )
+
+
 @when("reservo dois livros disponiveis")
 def reserve_two_books(context) -> None:
     books = context.available_books
     assert len(books) >= 2, "Sao necessarios pelo menos dois livros no catalogo."
     context.selected_isbns = [book["isbn"] for book in books[:2]]
+    assert len(set(context.selected_isbns)) == 2, "O catalogo nao retornou dois ISBNs distintos."
     context.reserve_response = context.api.add_books(context.user_id, context.selected_isbns)
 
 
@@ -111,9 +130,11 @@ def user_details_show_reserved_books(context) -> None:
     )
     details = details_response.json()
     assert details.get("userId") == context.user_id, "Os detalhes retornaram outro usuario."
-    reserved_isbns = {book["isbn"] for book in details.get("books", [])}
-    assert set(context.selected_isbns).issubset(reserved_isbns), (
-        "Os detalhes do usuario nao contem os dois livros reservados."
+    user_books = details.get("books")
+    assert isinstance(user_books, list), "Os detalhes do usuario nao contem uma lista de livros."
+    reserved_isbns = [book.get("isbn") for book in user_books if isinstance(book, dict)]
+    assert len(reserved_isbns) == 2 and set(reserved_isbns) == set(context.selected_isbns), (
+        "A colecao do usuario deve conter exatamente os dois livros reservados."
     )
 
 
@@ -280,3 +301,32 @@ def weak_password_is_rejected(context) -> None:
     assert "eight characters or longer" in message, (
         "A mensagem nao explica a politica de senha."
     )
+
+
+@when("excluo o usuario criado")
+def delete_created_user(context) -> None:
+    context.deleted_user_id = context.user_id
+    context.delete_user_response = context.api.delete_user(context.deleted_user_id)
+
+
+@then("a API confirma a exclusao do usuario")
+def user_deletion_is_confirmed(context) -> None:
+    response = context.delete_user_response
+    assert response.status_code in (200, 204), (
+        f"Esperado HTTP 200 ou 204, recebido {response.status_code}."
+    )
+    context.user_id = None
+
+
+@when("consulto os detalhes do usuario excluido")
+def get_deleted_user_details(context) -> None:
+    context.deleted_user_response = context.api.get_user(context.deleted_user_id)
+
+
+@then("a API confirma que o usuario foi removido")
+def deleted_user_is_not_accessible(context) -> None:
+    response = context.deleted_user_response
+    assert response.status_code == 401, f"Esperado HTTP 401, recebido {response.status_code}."
+    payload = response.json()
+    assert payload.get("code") == "1207", "A API retornou um codigo inesperado."
+    assert payload.get("message"), "A resposta nao confirma que o usuario nao existe."

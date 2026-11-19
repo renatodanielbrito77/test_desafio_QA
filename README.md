@@ -5,8 +5,12 @@ Automacao do fluxo da API DemoQA com Python e Behave (BDD/Gherkin):
 1. Criar um usuario.
 2. Gerar um token e confirmar a autorizacao.
 3. Consultar o catalogo.
-4. Reservar dois livros disponiveis.
-5. Consultar os dados do usuario e validar os livros.
+4. Consultar os detalhes de um livro do catalogo.
+5. Reservar dois livros disponiveis e validar exatamente os dois ISBNs.
+6. Consultar os dados do usuario e validar os livros.
+
+Um segundo cenario positivo exclui um usuario e confirma que ele nao pode mais
+ser consultado.
 
 ## Requisitos
 

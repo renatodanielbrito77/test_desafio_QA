@@ -41,6 +41,13 @@ class BookStoreApiClient:
     def list_books(self) -> requests.Response:
         return self._request("GET", "/BookStore/v1/Books")
 
+    def get_book(self, isbn: str) -> requests.Response:
+        return self._request(
+            "GET",
+            "/BookStore/v1/Book",
+            params={"ISBN": isbn},
+        )
+
     def add_books(self, user_id: str, isbns: list[str]) -> requests.Response:
         return self._request(
             "POST",
@@ -63,11 +70,13 @@ class BookStoreApiClient:
         path: str,
         *,
         json_body: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
     ) -> requests.Response:
         response = self.session.request(
             method,
             f"{self.base_url}{path}",
             json=json_body,
+            params=params,
             timeout=self.timeout,
         )
         return response

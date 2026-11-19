@@ -6,6 +6,15 @@ from features.environment import after_scenario
 
 
 class ScenarioCleanupTests(unittest.TestCase):
+    def test_does_not_repeat_delete_after_scenario_deletes_user(self) -> None:
+        api = Mock()
+        context = SimpleNamespace(api=api, user_id=None, token="temporary-token")
+
+        after_scenario(context, scenario=None)
+
+        api.delete_user.assert_not_called()
+        api.close.assert_called_once_with()
+
     def test_recovers_token_and_deletes_user_when_scenario_has_no_token(self) -> None:
         api = Mock()
         api.generate_token.return_value = SimpleNamespace(
