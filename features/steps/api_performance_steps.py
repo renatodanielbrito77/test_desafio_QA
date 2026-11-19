@@ -41,7 +41,11 @@ def average_catalog_response_is_within_limit(context) -> None:
     average_seconds = sum(elapsed_times) / len(elapsed_times)
     sample_details = ", ".join(f"{elapsed:.3f}s" for elapsed in elapsed_times)
 
+    summary = (
+        f"Amostras: {sample_details}. Média: {average_seconds:.3f}s. "
+        f"Máximo: {max(elapsed_times):.3f}s."
+    )
+    print(summary)
     assert average_seconds <= MAX_AVERAGE_RESPONSE_SECONDS, (
-        f"Media de {average_seconds:.3f}s excede o limite de "
-        f"{MAX_AVERAGE_RESPONSE_SECONDS:.3f}s. Amostras: {sample_details}."
+        f"Limite de média excedido ({MAX_AVERAGE_RESPONSE_SECONDS:.3f}s). {summary}"
     )

@@ -16,8 +16,23 @@ Feature: Respostas negativas da Book Store API
     Then o usuario e criado com sucesso
     When gero um token de acesso para o usuario
     Then o token e gerado com sucesso
+    When consulto os livros disponiveis
+    Then o catalogo possui livros
     When tento reservar um ISBN inexistente
     Then a API rejeita a reserva e informa o motivo
+
+  Scenario: Rejeitar reserva parcialmente invalida sem alterar a colecao
+    Given que a API da Book Store esta configurada
+    When crio um novo usuario
+    Then o usuario e criado com sucesso
+    When gero um token de acesso para o usuario
+    Then o token e gerado com sucesso
+    When consulto os livros disponiveis
+    Then o catalogo possui livros
+    When reservo um livro disponivel
+    Then a primeira reserva e confirmada
+    When tento reservar outro livro junto com um ISBN inexistente
+    Then a API rejeita o lote sem alterar a colecao
 
   Scenario: Rejeitar senha incorreta de usuario existente
     Given que a API da Book Store esta configurada
@@ -46,6 +61,10 @@ Feature: Respostas negativas da Book Store API
 
   Scenario: Recusar consulta de usuario sem token
     Given que a API da Book Store esta configurada
+    When crio um novo usuario
+    Then o usuario e criado com sucesso
+    When gero um token de acesso para o usuario
+    Then o token e gerado com sucesso
     When consulto os detalhes de usuario sem token
     Then a API recusa a consulta por falta de autorizacao
 

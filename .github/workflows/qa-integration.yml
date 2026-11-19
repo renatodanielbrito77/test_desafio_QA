@@ -1,0 +1,70 @@
+name: Integração da Book Store API
+
+"on":
+  workflow_dispatch:
+    inputs:
+      run_latency:
+        description: Executar também a medição de latência
+        type: boolean
+        default: false
+  schedule:
+    - cron: '23 12 * * 1-5'
+  workflow_call:
+    inputs:
+      base_url:
+        description: URL da API no ambiente de testes ou staging
+        type: string
+        required: true
+      run_latency:
+        description: Executar também a medição de latência
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  integration-tests:
+    name: Testes de integração da API
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DEMOQA_BASE_URL: ${{ inputs.base_url || vars.DEMOQA_BASE_URL || 'https://demoqa.com' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      - name: Instalar dependências
+        id: dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Executar cenários funcionais
+        shell: bash
+        run: |
+          mkdir -p reports
+          python -m behave --tags='not @performance' --format plain \
+            --junit --junit-directory reports/functional 2>&1 | tee reports/functional.log
+
+      - name: Medir latência do catálogo
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && inputs.run_latency }}
+        shell: bash
+        run: |
+          mkdir -p reports
+          python -m behave --no-capture --format plain --junit \
+            --junit-directory reports/latency features/api_performance.feature 2>&1 | tee reports/latency.log
+
+      - name: Publicar evidências de integração
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorios-qa-integracao
+          path: reports/
+          retention-days: 14
