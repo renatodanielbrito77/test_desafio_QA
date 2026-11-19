@@ -29,7 +29,16 @@ execucao. Ao final, o hook recupera um token se necessario e remove o usuario;
 falhas de limpeza sao reportadas. A URL base pode ser configurada pela
 variavel `DEMOQA_BASE_URL` (padrao: `https://demoqa.com`).
 O Behave executa o fluxo positivo em `features/bookstore_api.feature` e os
-cenarios negativos em `features/api_negative_responses.feature`.
+cenarios negativos em `features/api_negative_responses.feature`. O teste de
+desempenho em `features/api_performance.feature` mede cinco chamadas sequenciais
+ao catalogo e exige tempo medio de ate 2 segundos; e uma verificacao de latencia,
+nao um teste de carga concorrente.
+
+Para executar somente o teste de desempenho:
+
+```bash
+behave features/api_performance.feature
+```
 
 Os testes unitarios do hook de limpeza podem ser executados com:
 
