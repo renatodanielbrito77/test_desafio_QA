@@ -29,6 +29,9 @@ def create_user(context) -> None:
     context.username = f"qa_{uuid.uuid4().hex[:12]}"
     context.password = _temporary_password()
     context.create_user_response = context.api.create_user(context.username, context.password)
+    if context.create_user_response.status_code == 201:
+        payload = context.create_user_response.json()
+        context.user_id = payload.get("userID") or payload.get("userId")
 
 
 @then("o usuario e criado com sucesso")
@@ -37,8 +40,7 @@ def user_is_created(context) -> None:
     assert response.status_code == 201, f"Esperado HTTP 201, recebido {response.status_code}."
     payload = response.json()
     assert payload.get("username") == context.username, "A resposta nao corresponde ao usuario criado."
-    assert payload.get("userId"), "A resposta da criacao nao contem userId."
-    context.user_id = payload["userId"]
+    assert context.user_id, "A resposta da criacao nao contem userID/userId."
 
 
 @when("gero um token de acesso para o usuario")
@@ -90,6 +92,18 @@ def reserve_two_books(context) -> None:
 def user_details_show_reserved_books(context) -> None:
     response = context.reserve_response
     assert response.status_code == 201, f"Esperado HTTP 201, recebido {response.status_code}."
+    reservation = response.json()
+    assert isinstance(reservation, dict), "A resposta da reserva deve ser um objeto."
+    returned_books = reservation.get("books")
+    assert isinstance(returned_books, list), "A resposta da reserva nao contem a lista books."
+    returned_isbns = [
+        book.get("isbn") for book in returned_books if isinstance(book, dict)
+    ]
+    assert len(returned_isbns) == len(context.selected_isbns) and set(returned_isbns) == set(
+        context.selected_isbns
+    ), (
+        "A resposta da reserva nao corresponde aos ISBNs enviados."
+    )
 
     details_response = context.api.get_user(context.user_id)
     assert details_response.status_code == 200, (
@@ -101,3 +115,60 @@ def user_details_show_reserved_books(context) -> None:
     assert set(context.selected_isbns).issubset(reserved_isbns), (
         "Os detalhes do usuario nao contem os dois livros reservados."
     )
+
+
+@given("credenciais de um usuario inexistente")
+def missing_user_credentials(context) -> None:
+    context.username = f"qa_missing_{uuid.uuid4().hex[:12]}"
+    context.password = _temporary_password()
+
+
+@when("solicito um token com essas credenciais")
+def request_token_with_invalid_credentials(context) -> None:
+    context.invalid_token_response = context.api.generate_token(
+        context.username,
+        context.password,
+    )
+
+
+@then("a API informa que o token nao foi gerado")
+def token_generation_is_rejected(context) -> None:
+    response = context.invalid_token_response
+    assert response.status_code == 200, f"Esperado HTTP 200, recebido {response.status_code}."
+    payload = response.json()
+    assert payload.get("status") == "Failed", "A API nao rejeitou as credenciais."
+    assert payload.get("token") is None, "A API retornou token para credenciais invalidas."
+    assert payload.get("result"), "A resposta nao explica a falha de autenticacao."
+
+
+@when("verifico a autorizacao com essas credenciais")
+def request_authorization_with_invalid_credentials(context) -> None:
+    context.invalid_authorization_response = context.api.authorize_user(
+        context.username,
+        context.password,
+    )
+
+
+@then("a API recusa a autorizacao com erro de usuario")
+def invalid_user_authorization_is_rejected(context) -> None:
+    response = context.invalid_authorization_response
+    assert response.status_code == 404, f"Esperado HTTP 404, recebido {response.status_code}."
+    payload = response.json()
+    assert payload.get("message"), "A resposta de erro nao contem uma mensagem."
+
+
+@when("tento reservar um ISBN inexistente")
+def reserve_missing_isbn(context) -> None:
+    context.invalid_isbn = f"missing-{uuid.uuid4().hex}"
+    context.invalid_reservation_response = context.api.add_books(
+        context.user_id,
+        [context.invalid_isbn],
+    )
+
+
+@then("a API rejeita a reserva e informa o motivo")
+def invalid_reservation_is_rejected(context) -> None:
+    response = context.invalid_reservation_response
+    assert response.status_code == 400, f"Esperado HTTP 400, recebido {response.status_code}."
+    payload = response.json()
+    assert payload.get("message"), "A resposta de erro nao contem uma mensagem."

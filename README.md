@@ -25,8 +25,17 @@ behave
 No Windows, ative o ambiente com `.venv\Scripts\activate`.
 
 O teste cria um usuario com nome unico e gera uma senha temporaria em tempo de
-execucao. Ao final, tenta remover o usuario criado. A URL base pode ser
-configurada pela variavel `DEMOQA_BASE_URL` (padrao: `https://demoqa.com`).
+execucao. Ao final, o hook recupera um token se necessario e remove o usuario;
+falhas de limpeza sao reportadas. A URL base pode ser configurada pela
+variavel `DEMOQA_BASE_URL` (padrao: `https://demoqa.com`).
+O Behave executa o fluxo positivo em `features/bookstore_api.feature` e os
+cenarios negativos em `features/api_negative_responses.feature`.
+
+Os testes unitarios do hook de limpeza podem ser executados com:
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ## Onde adicionar cenarios
 

@@ -70,5 +70,4 @@ class BookStoreApiClient:
             json=json_body,
             timeout=self.timeout,
         )
-        response.raise_for_status()
         return response
