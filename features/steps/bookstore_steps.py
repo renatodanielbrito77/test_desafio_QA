@@ -141,6 +141,15 @@ def token_generation_is_rejected(context) -> None:
     assert payload.get("result"), "A resposta nao explica a falha de autenticacao."
 
 
+@when("solicito um token com a senha incorreta")
+def request_token_with_wrong_password(context) -> None:
+    context.wrong_password = f"{context.password}wrong"
+    context.invalid_token_response = context.api.generate_token(
+        context.username,
+        context.wrong_password,
+    )
+
+
 @when("verifico a autorizacao com essas credenciais")
 def request_authorization_with_invalid_credentials(context) -> None:
     context.invalid_authorization_response = context.api.authorize_user(
@@ -155,6 +164,14 @@ def invalid_user_authorization_is_rejected(context) -> None:
     assert response.status_code == 404, f"Esperado HTTP 404, recebido {response.status_code}."
     payload = response.json()
     assert payload.get("message"), "A resposta de erro nao contem uma mensagem."
+
+
+@when("verifico a autorizacao com a senha incorreta")
+def request_authorization_with_wrong_password(context) -> None:
+    context.invalid_authorization_response = context.api.authorize_user(
+        context.username,
+        context.wrong_password,
+    )
 
 
 @when("tento reservar um ISBN inexistente")
@@ -172,3 +189,94 @@ def invalid_reservation_is_rejected(context) -> None:
     assert response.status_code == 400, f"Esperado HTTP 400, recebido {response.status_code}."
     payload = response.json()
     assert payload.get("message"), "A resposta de erro nao contem uma mensagem."
+
+
+@when("reservo um livro disponivel")
+def reserve_one_available_book(context) -> None:
+    assert context.available_books, "Nao ha livros disponiveis para reservar."
+    context.duplicate_isbn = context.available_books[0]["isbn"]
+    context.first_reservation_response = context.api.add_books(
+        context.user_id,
+        [context.duplicate_isbn],
+    )
+
+
+@then("a primeira reserva e confirmada")
+def first_reservation_is_confirmed(context) -> None:
+    response = context.first_reservation_response
+    assert response.status_code == 201, f"Esperado HTTP 201, recebido {response.status_code}."
+    payload = response.json()
+    books = payload.get("books", []) if isinstance(payload, dict) else []
+    assert [book.get("isbn") for book in books if isinstance(book, dict)] == [
+        context.duplicate_isbn
+    ], "A primeira reserva nao retornou o ISBN solicitado."
+
+
+@when("tento reservar novamente o mesmo livro")
+def reserve_duplicate_book(context) -> None:
+    context.duplicate_reservation_response = context.api.add_books(
+        context.user_id,
+        [context.duplicate_isbn],
+    )
+
+
+@then("a API rejeita a reserva duplicada")
+def duplicate_reservation_is_rejected(context) -> None:
+    response = context.duplicate_reservation_response
+    assert response.status_code == 400, f"Esperado HTTP 400, recebido {response.status_code}."
+    payload = response.json()
+    assert payload.get("code") == "1210", "A API retornou um codigo inesperado para duplicidade."
+    assert "already present" in payload.get("message", "").lower(), (
+        "A resposta nao explica que o ISBN ja esta na colecao."
+    )
+
+
+@then("a colecao continua com uma unica copia do livro")
+def collection_keeps_one_copy_of_book(context) -> None:
+    response = context.api.get_user(context.user_id)
+    assert response.status_code == 200, f"Esperado HTTP 200, recebido {response.status_code}."
+    books = response.json().get("books", [])
+    isbn_count = sum(book.get("isbn") == context.duplicate_isbn for book in books)
+    assert isbn_count == 1, f"Esperado uma copia do ISBN, encontradas {isbn_count}."
+
+
+@when("consulto os detalhes de usuario sem token")
+def request_user_details_without_token(context) -> None:
+    context.unauthenticated_user_id = str(uuid.uuid4())
+    context.unauthenticated_user_response = context.api.get_user(
+        context.unauthenticated_user_id
+    )
+
+
+@then("a API recusa a consulta por falta de autorizacao")
+def unauthenticated_user_details_are_rejected(context) -> None:
+    response = context.unauthenticated_user_response
+    assert response.status_code == 401, f"Esperado HTTP 401, recebido {response.status_code}."
+    payload = response.json()
+    assert payload.get("code") == "1200", "A API retornou um codigo inesperado."
+    assert payload.get("message"), "A resposta de erro nao contem uma mensagem."
+
+
+@when("tento criar um usuario com senha fraca")
+def create_user_with_weak_password(context) -> None:
+    context.username = f"qa_weak_{uuid.uuid4().hex[:12]}"
+    context.password = "weak"
+    context.weak_password_create_response = context.api.create_user(
+        context.username,
+        context.password,
+    )
+    if context.weak_password_create_response.status_code == 201:
+        payload = context.weak_password_create_response.json()
+        context.user_id = payload.get("userID") or payload.get("userId")
+
+
+@then("a API rejeita a senha fraca com erro de validacao")
+def weak_password_is_rejected(context) -> None:
+    response = context.weak_password_create_response
+    assert response.status_code == 400, f"Esperado HTTP 400, recebido {response.status_code}."
+    payload = response.json()
+    assert payload.get("code") == "1300", "A API retornou um codigo inesperado."
+    message = payload.get("message", "")
+    assert "eight characters or longer" in message, (
+        "A mensagem nao explica a politica de senha."
+    )
